@@ -1,0 +1,11 @@
+{
+  "aliases": {
+    "free_executor_a": {
+      "adapter": "groq",
+      "model": "VERIFICAR NA DOCUMENTAÇÃO OFICIAL",
+      "key_env": "GROQ_API_KEY",
+      "confirmed_free": false,
+      "max_tokens": 2048
+    }
+  }
+}
