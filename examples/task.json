@@ -1,0 +1,9 @@
+{
+  "task_id": "version-001",
+  "description": "Add --version printing sample 0.1.0 to app.py; preserve default hello output. Create unittest tests in test_app.py.",
+  "allowed_files": ["app.py", "test_app.py"],
+  "commands": [
+    ["python3", "-m", "unittest", "discover", "-v"],
+    ["python3", "-c", "import subprocess; r=subprocess.run(['python3','app.py','--version'],capture_output=True,text=True); assert r.returncode == 0 and r.stdout.strip() == 'sample 0.1.0'"]
+  ]
+}

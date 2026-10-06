@@ -1,0 +1,57 @@
+name: Groq controlled experiment
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [preflight, live]
+        default: preflight
+  push:
+    branches: [feat/v0.1-executor]
+permissions:
+  contents: read
+  issues: read
+concurrency:
+  group: groq-controlled-experiment
+  cancel-in-progress: false
+jobs:
+  experiment:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[groq-preflight]') ||
+      contains(github.event.head_commit.message, '[groq-live]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Authenticate without inference
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: PYTHONPATH=src python3 -m zeroagent.experiment --preflight
+      - name: Prepare controlled live experiment
+        if: inputs.mode == 'live' || contains(github.event.head_commit.message, '[groq-live]')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FREE_ACCOUNT: ${{ vars.GROQ_FREE_ACCOUNT_CONFIRMED }}
+        run: |
+          test "$FREE_ACCOUNT" = true
+          gh issue view 7 --json number,title,body > issue.json
+          docker pull python:3.12-slim
+      - name: One bounded inference and isolated checks
+        if: inputs.mode == 'live' || contains(github.event.head_commit.message, '[groq-live]')
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_FREE_ACCOUNT_CONFIRMED: ${{ vars.GROQ_FREE_ACCOUNT_CONFIRMED }}
+        run: PYTHONPATH=src python3 -m zeroagent.experiment --issue-json issue.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: groq-experiment
+          path: workspace/live/artifacts/
+          if-no-files-found: ignore
+          retention-days: 1

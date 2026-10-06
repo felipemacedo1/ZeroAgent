@@ -28,3 +28,22 @@ budget ledger is implemented and tested independently, never a promise in `.env`
 
 See [architecture](docs/ARCHITECTURE.md), [state](docs/PROJECT_STATE.md),
 [providers](docs/PROVIDERS.md), and [handoff](docs/HANDOFF.md).
+
+## Configured provider experiment
+
+After verifying a real model and an account with paid billing disabled, replace the
+placeholder in `config.example.yaml`, explicitly set `confirmed_free` to `true`, and
+export the key named by `key_env`. JSON configuration is a YAML subset; arbitrary YAML
+syntax is not parsed. Do not place credentials in the task checkout.
+
+```sh
+docker pull python:3.12-slim
+zeroagent run --task examples/task.json --workspace /path/to/clean/task-checkout \
+  --artifacts /path/to/new/artifacts --config config.example.yaml --alias free_executor_a
+```
+
+The example expects `app.py` in a dedicated clean Git checkout. Run operates on that
+checkout and creates a task branch; it refuses dirty worktrees and existing branches.
+Pass only explicitly reviewed source paths; secret detection is not a general DLP
+guarantee. Commands are operator input, never model output. Inspect `changes.patch`,
+`result.json` and `PR.md` before committing/publishing the generated change.

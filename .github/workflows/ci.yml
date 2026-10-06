@@ -1,0 +1,29 @@
+name: Deterministic CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: docker pull python:3.12-slim
+      - run: ZEROAGENT_DOCKER_TESTS=1 PYTHONPATH=src python3 -m unittest discover -s tests -v
+      - run: PYTHONPATH=src python3 -m zeroagent.cli demo --root workspace/ci
+      - run: PYTHONPATH=src python3 -m zeroagent.cli demo --sandbox docker --root workspace/docker
+      - run: git diff --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deterministic-evidence
+          path: workspace/docker/artifacts/
+          retention-days: 1
