@@ -30,7 +30,7 @@ if __name__ == "__main__":
 ACCEPTANCE = ['python3', '-c', 'import subprocess; r=subprocess.run(["python3","app.py","--version"],capture_output=True,text=True); assert r.returncode == 0 and r.stdout.strip() == "sample 0.1.0"; r=subprocess.run(["python3","app.py"],capture_output=True,text=True); assert r.returncode == 0 and r.stdout.strip() == "hello"']
 
 
-def demo(root: Path, sandbox="trusted_fixture", issue=None):
+def demo(root: Path, sandbox="trusted_fixture", issue=None, provider=None):
     root.mkdir(parents=True, exist_ok=False)
     worktree = root / "repo"
     worktree.mkdir()
@@ -43,8 +43,8 @@ def demo(root: Path, sandbox="trusted_fixture", issue=None):
     description = f"{issue['title']}\n{issue['body']}" if issue else "Add --version and tests to the sample CLI"
     return execute(task_id=task_id, task=description,
         workspace=worktree, allowed=["app.py", "test_app.py"],
-        commands=[["python3", "test_app.py"], ACCEPTANCE],
-        provider=MockProvider({"app.py": IMPLEMENTATION, "test_app.py": TEST}),
+        commands=[["python3", "-m", "unittest", "discover", "-v"], ACCEPTANCE],
+        provider=provider or MockProvider({"app.py": IMPLEMENTATION, "test_app.py": TEST}),
         artifacts=root / "artifacts", sandbox=sandbox)
 
 
