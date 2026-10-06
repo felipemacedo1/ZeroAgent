@@ -12,7 +12,8 @@ from .validators import CommandValidator
 
 
 def git(root: Path, *args: str) -> str:
-    result = subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *args],
+    result = subprocess.run(["git", "-c", "core.hooksPath=/dev/null",
+        "-c", "core.fsmonitor=false", "-c", "diff.external=", *args],
         cwd=root, check=True, capture_output=True, text=True, timeout=30,
         env={"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8",
              "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null"})
@@ -77,6 +78,9 @@ def execute(*, task_id: str, task: str, workspace: Path, allowed: list[str],
             raise ValueError("Require bounded file scope and validation commands")
         if sandbox == "trusted_fixture" and provider.__class__.__name__ != "MockProvider":
             raise ValueError("Real providers require Docker")
+        local_config = git(workspace, "config", "--local", "--list", "--name-only")
+        if any(key.startswith(("filter.", "include.", "includeif.")) for key in local_config.lower().splitlines()):
+            raise ValueError("Checkout config contains executable filters or includes")
         if git(workspace, "status", "--porcelain", "--untracked-files=all"):
             raise ValueError("Workspace must be clean")
         result.base_commit = git(workspace, "rev-parse", "HEAD")
@@ -123,7 +127,7 @@ def execute(*, task_id: str, task: str, workspace: Path, allowed: list[str],
                 result.diff_stats["insertions"] += int(added)
                 result.diff_stats["deletions"] += int(deleted)
         patch = artifacts / "changes.patch"
-        patch.write_text(git(workspace, "diff", "--cached", "--binary") + "\n")
+        patch.write_text(git(workspace, "diff", "--cached", "--binary", "--no-ext-diff", "--no-textconv") + "\n")
         result.artifacts.append(str(patch))
         if result.status == "passed":
             pr = artifacts / "PR.md"

@@ -63,6 +63,16 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(result.attempts, 0)
         self.assertEqual((root / "user.txt").read_text(), "keep")
 
+    def test_local_git_filters_blocked_before_execution(self):
+        root = self.fixture()
+        git(root, "config", "filter.unsafe.clean", "touch should-not-exist")
+        result = execute(task_id="t", task="t", workspace=root, allowed=["app.py"],
+            commands=[ACCEPTANCE], provider=MockProvider({"app.py": IMPLEMENTATION}),
+            artifacts=self.root / "artifacts", sandbox="trusted_fixture")
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(result.attempts, 0)
+        self.assertFalse((root / "should-not-exist").exists())
+
     def test_path_policy(self):
         for name in ("../x", "/tmp/x", ".env", "a/.git/config", "a/../b", "key.pem", "secrets.txt"):
             with self.assertRaises(ValueError):
