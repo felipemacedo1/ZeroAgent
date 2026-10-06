@@ -16,7 +16,8 @@ def list_models():
     if not key:
         raise ProviderError("missing_credential")
     request = urllib.request.Request("https://api.groq.com/openai/v1/models",
-        headers={"Authorization": f"Bearer {key}"})
+        headers={"Authorization": f"Bearer {key}", "User-Agent": "ZeroAgent/0.1.0",
+                 "Accept": "application/json"})
     try:
         with urllib.request.build_opener(NoRedirect()).open(request, timeout=30) as response:
             raw = response.read(200001)
@@ -25,6 +26,15 @@ def list_models():
             data = json.loads(raw)
             return sorted(item["id"] for item in data["data"] if item.get("active", True))
     except urllib.error.HTTPError as exc:
+        # Only a bounded error category; never emit headers, key, or raw error body.
+        raw = exc.read(4096).decode(errors="replace")
+        category = "non_json_error"
+        try:
+            error = json.loads(raw).get("error", {})
+            category = str(error.get("type", "unknown"))
+        except (ValueError, AttributeError):
+            pass
+        print(json.dumps({"http_status": exc.code, "error_category": category.replace(key, "[redacted]")[:80]}))
         raise ProviderError(f"http_{exc.code}") from None
     except (OSError, ValueError, KeyError, TypeError):
         raise ProviderError("preflight_unavailable_or_invalid") from None
